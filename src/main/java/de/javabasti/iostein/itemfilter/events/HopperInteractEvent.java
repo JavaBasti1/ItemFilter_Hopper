@@ -86,11 +86,11 @@ public class HopperInteractEvent implements Listener {
                 String stringVerbotenStatus = container.get(hopperVerbotenStatus, PersistentDataType.STRING);
                 String stringErlaubtStatus = container.get(hopperErlaubtStatus, PersistentDataType.STRING);
 
-                List<NamespacedKey> VerboteneItemsStatus = List.of(hopperVerbotenStatus, hopperErlaubtStatus);
+                List<NamespacedKey> HopperModusItemsStatus = List.of(hopperVerbotenStatus, hopperErlaubtStatus);
                 List<NamespacedKey> VerboteneItemKeys = List.of(hopperVerbotenesItem1, hopperVerbotenesItem2, hopperVerbotenesItem3, hopperVerbotenesItem4, hopperVerbotenesItem5);
                 List<NamespacedKey> ErlaubteItemKeys = List.of(hopperErlaubtesItem1, hopperErlaubtesItem2, hopperErlaubtesItem3, hopperErlaubtesItem4, hopperErlaubtesItem5);
 
-                for (NamespacedKey key : VerboteneItemsStatus) {
+                for (NamespacedKey key : HopperModusItemsStatus) {
                     if (!container.has(key, PersistentDataType.STRING)) {
                         container.set(key, PersistentDataType.STRING, "§cDeaktiviert");
                     }

@@ -1,0 +1,7 @@
+name: ItemFilter
+version: '${project.version}'
+main: de.javabasti.iostein.itemfilter.ItemFilter
+api-version: 1.19
+prefix: ItemFilter
+authors: [ JavaBasti ]
+description: Item-Filter für einen Trichter

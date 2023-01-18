@@ -1,9 +1,9 @@
 package de.javabasti.iostein.itemfilter.events;
 
 import de.javabasti.iostein.itemfilter.ItemFilter;
-import de.javabasti.iostein.itemfilter.utils.HopperInventory;
+import de.javabasti.iostein.itemfilter.utils.InventoryManager;
 import de.javabasti.iostein.itemfilter.utils.ItemBuilder;
-import org.bukkit.Location;
+import de.javabasti.iostein.itemfilter.utils.Utils;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Hopper;
@@ -22,7 +22,6 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class HopperInteractEvent implements Listener {
 
@@ -31,39 +30,12 @@ public class HopperInteractEvent implements Listener {
     public HopperInteractEvent(ItemFilter instance) {
         plugin = instance;
     }
-    public static boolean inventoryClosedAfterClick = false;
-
-    public static final Map<String, ClickEvent> lastClickedBlock = new ConcurrentHashMap<>();
-
-
-    // Event zum speichern der Location & der Zeit des angeklickten Blockes für weitere Aktionen
-    public static class ClickEvent {
-        public long time;
-
-        public Location location;
-
-        private ClickEvent() {
-        }
-    }
-
-    NamespacedKey hopperVerbotenStatus = new NamespacedKey(ItemFilter.getInstance(), "hopperVerbotenStatus");
-    NamespacedKey hopperErlaubtStatus = new NamespacedKey(ItemFilter.getInstance(), "hopperErlaubtStatus");
-
-    NamespacedKey hopperErlaubtesItem1 = new NamespacedKey(ItemFilter.getInstance(), "hopperErlaubtesItem1");
-    NamespacedKey hopperErlaubtesItem2 = new NamespacedKey(ItemFilter.getInstance(), "hopperErlaubtesItem2");
-    NamespacedKey hopperErlaubtesItem3 = new NamespacedKey(ItemFilter.getInstance(), "hopperErlaubtesItem3");
-    NamespacedKey hopperErlaubtesItem4 = new NamespacedKey(ItemFilter.getInstance(), "hopperErlaubtesItem4");
-    NamespacedKey hopperErlaubtesItem5 = new NamespacedKey(ItemFilter.getInstance(), "hopperErlaubtesItem5");
-
-    NamespacedKey hopperVerbotenesItem1 = new NamespacedKey(ItemFilter.getInstance(), "hopperVerbotenesItem1");
-    NamespacedKey hopperVerbotenesItem2 = new NamespacedKey(ItemFilter.getInstance(), "hopperVerbotenesItem2");
-    NamespacedKey hopperVerbotenesItem3 = new NamespacedKey(ItemFilter.getInstance(), "hopperVerbotenesItem3");
-    NamespacedKey hopperVerbotenesItem4 = new NamespacedKey(ItemFilter.getInstance(), "hopperVerbotenesItem4");
-    NamespacedKey hopperVerbotenesItem5 = new NamespacedKey(ItemFilter.getInstance(), "hopperVerbotenesItem5");
-
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+        Utils utils = ItemFilter.getUtils();
+        InventoryManager inventoryManager = ItemFilter.getInventoryManager();
+
         Player player = event.getPlayer();
         if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) && player.isSneaking()) {
             if (Objects.equals(Objects.requireNonNull(event.getClickedBlock()).getType(), Material.HOPPER)) {
@@ -71,120 +43,122 @@ public class HopperInteractEvent implements Listener {
 
                 /*
 
-                PersistentData des Hoppers umändern, um den Status sowohl als auch die Items in dem Block zu speichern
+                PersistentData des Hoppers umändern, um den State sowohl als auch die Items in dem Block zu speichern
                 Inventar zum ändern des Hopper-Filter-Modi erstellen und konfigurieren
 
                 */
 
-                ClickEvent click = new ClickEvent();
+                Utils.ClickEvent click = new Utils.ClickEvent();
                 click.location = event.getClickedBlock().getLocation();
                 click.time = System.currentTimeMillis();
-                lastClickedBlock.put(player.getUniqueId().toString(), click);
+                utils.lastClickedBlock.put(player.getUniqueId().toString(), click);
+
                 TileState state = (TileState) event.getClickedBlock().getState();
                 PersistentDataContainer container = state.getPersistentDataContainer();
 
-                String stringVerbotenStatus = container.get(hopperVerbotenStatus, PersistentDataType.STRING);
-                String stringErlaubtStatus = container.get(hopperErlaubtStatus, PersistentDataType.STRING);
+                List<NamespacedKey> HopperModeItemsState = List.of(utils.hopperForbiddenState, utils.hopperAllowedState);
+                List<NamespacedKey> ForbiddenItemKeys = List.of(utils.hopperForbiddenItem1, utils.hopperForbiddenItem2, utils.hopperForbiddenItem3, utils.hopperForbiddenItem4, utils.hopperForbiddenItem5);
+                List<NamespacedKey> AllowedItemKeys = List.of(utils.hopperAllowedItem1, utils.hopperAllowedItem2, utils.hopperAllowedItem3, utils.hopperAllowedItem4, utils.hopperAllowedItem5);
 
-                List<NamespacedKey> HopperModusItemsStatus = List.of(hopperVerbotenStatus, hopperErlaubtStatus);
-                List<NamespacedKey> VerboteneItemKeys = List.of(hopperVerbotenesItem1, hopperVerbotenesItem2, hopperVerbotenesItem3, hopperVerbotenesItem4, hopperVerbotenesItem5);
-                List<NamespacedKey> ErlaubteItemKeys = List.of(hopperErlaubtesItem1, hopperErlaubtesItem2, hopperErlaubtesItem3, hopperErlaubtesItem4, hopperErlaubtesItem5);
-
-                for (NamespacedKey key : HopperModusItemsStatus) {
+                for (NamespacedKey key : HopperModeItemsState) {
                     if (!container.has(key, PersistentDataType.STRING)) {
                         container.set(key, PersistentDataType.STRING, "§cDeaktiviert");
                     }
                 }
 
-                for (NamespacedKey key : VerboteneItemKeys) {
+                for (NamespacedKey key : ForbiddenItemKeys) {
                     if (!container.has(key, PersistentDataType.STRING)) {
                         container.set(key, PersistentDataType.STRING, "AIR");
                     }
-                    if (!player.hasPermission("Slot.Alpha") && key.equals(hopperVerbotenesItem4)) {
+                    if (!player.hasPermission("Slot.Alpha") && key.equals(utils.hopperForbiddenItem4)) {
                         container.set(key, PersistentDataType.STRING, "BARRIER");
                     }
-                    if (!player.hasPermission("Slot.Pro") && key.equals(hopperVerbotenesItem5)) {
+                    if (!player.hasPermission("Slot.Pro") && key.equals(utils.hopperForbiddenItem5)) {
                         container.set(key, PersistentDataType.STRING, "BARRIER");
                     }
                 }
 
-                for (NamespacedKey key : ErlaubteItemKeys) {
+                for (NamespacedKey key : AllowedItemKeys) {
                     if (!container.has(key, PersistentDataType.STRING)) {
                         container.set(key, PersistentDataType.STRING, "AIR");
                     }
-                    if (!player.hasPermission("Slot.Alpha") && key.equals(hopperErlaubtesItem4)) {
+                    if (!player.hasPermission("Slot.Alpha") && key.equals(utils.hopperAllowedItem4)) {
                         container.set(key, PersistentDataType.STRING, "BARRIER");
                     }
-                    if (!player.hasPermission("Slot.Pro") && key.equals(hopperErlaubtesItem5)) {
+                    if (!player.hasPermission("Slot.Pro") && key.equals(utils.hopperAllowedItem5)) {
                         container.set(key, PersistentDataType.STRING, "BARRIER");
                     }
                 }
 
                 state.update();
 
-                HopperInventory.createInventory(player);
+                inventoryManager.createInventory("FilterInventory", 27, "§8≫ §eTrichter§8-§6Filter");
 
                 ItemStack glass = (new ItemBuilder(Material.BLACK_STAINED_GLASS_PANE, 1, "§a ")).build();
-                for (int i = 0; i < HopperInventory.getInventory().getSize(); i++) {
-                    if (HopperInventory.getInventory().getItem(i) == null) {
-                        HopperInventory.setInventoryItems(i, glass);
+                for (int i = 0; i < inventoryManager.getCreatedInventory("FilterInventory").getSize(); i++) {
+                    if (inventoryManager.getCreatedInventory("FilterInventory").getItem(i) == null) {
+                        inventoryManager.setItem("FilterInventory",  i, glass);
                     }
                 }
 
-                List<String> verboteneItemsLore = new ArrayList<>();
-                verboteneItemsLore.add("§7Filtere hier nach Items, welche §cnicht §7eingesammelt werden sollen.");
-                verboteneItemsLore.add("§7Alle anderen Items werden eingesammelt.");
-                verboteneItemsLore.add("§a ");
-                verboteneItemsLore.add("§7Status: " + stringVerbotenStatus);
-                verboteneItemsLore.add("§e ");
-                if (Objects.equals(container.get(hopperVerbotenStatus, PersistentDataType.STRING), "§cDeaktiviert")) {
-                    verboteneItemsLore.add("§8Klicke um diese Filter Option zu aktivieren.");
+
+                String stringForbiddenState = container.get(utils.hopperForbiddenState, PersistentDataType.STRING);
+                String stringAllowedState = container.get(utils.hopperAllowedState, PersistentDataType.STRING);
+
+                List<String> ForbiddenItemsLore = new ArrayList<>();
+                ForbiddenItemsLore.add("§7Filtere hier nach Items, welche §cnicht §7eingesammelt werden sollen.");
+                ForbiddenItemsLore.add("§7Alle anderen Items werden eingesammelt.");
+                ForbiddenItemsLore.add("§a ");
+                ForbiddenItemsLore.add("§7State: " + stringForbiddenState);
+                ForbiddenItemsLore.add("§e ");
+                if (Objects.equals(container.get(utils.hopperForbiddenState, PersistentDataType.STRING), "§cDeaktiviert")) {
+                    ForbiddenItemsLore.add("§8Klicke um diese Filter Option zu aktivieren.");
                 }else{
-                    verboteneItemsLore.add("§8Klicke um diese Filter Option zu deaktivieren.");
+                    ForbiddenItemsLore.add("§8Klicke um diese Filter Option zu deaktivieren.");
                 }
 
-                ItemStack verboteneItemsItem;
-                if (Objects.equals(container.get(hopperVerbotenStatus, PersistentDataType.STRING), "§aAktiviert")) {
-                    verboteneItemsItem = (new ItemBuilder(Material.TNT_MINECART, 1,
-                            "§cVerbotene Items").glow().lore(verboteneItemsLore)).build();
+                ItemStack ForbiddenItemsItem;
+                if (Objects.equals(container.get(utils.hopperForbiddenState, PersistentDataType.STRING), "§aAktiviert")) {
+                    ForbiddenItemsItem = (new ItemBuilder(Material.TNT_MINECART, 1,
+                            "§cVerbotene Items").glow().lore(ForbiddenItemsLore)).build();
                 } else {
-                    verboteneItemsItem = (new ItemBuilder(Material.TNT_MINECART,
+                    ForbiddenItemsItem = (new ItemBuilder(Material.TNT_MINECART,
                             1,
-                            "§cVerbotene Items").lore(verboteneItemsLore)).build();
+                            "§cVerbotene Items").lore(ForbiddenItemsLore)).build();
                 }
 
-                List<String> erlaubteItemsLore = new ArrayList<>();
-                erlaubteItemsLore.add("§7Filtere hier Items, die §aeingesammelt §7werden sollen.");
-                erlaubteItemsLore.add("§7Alle anderen Items werden in dieser Option nicht eingesammelt.");
-                erlaubteItemsLore.add("§a ");
-                erlaubteItemsLore.add("§7Status: " + stringErlaubtStatus);
-                erlaubteItemsLore.add("§e ");
-                if (Objects.equals(container.get(hopperErlaubtStatus, PersistentDataType.STRING), "§cDeaktiviert")) {
-                    erlaubteItemsLore.add("§8Klicke um diese Filter Option zu aktivieren.");
+                List<String> AllowedItemsLore = new ArrayList<>();
+                AllowedItemsLore.add("§7Filtere hier Items, die §aeingesammelt §7werden sollen.");
+                AllowedItemsLore.add("§7Alle anderen Items werden in dieser Option nicht eingesammelt.");
+                AllowedItemsLore.add("§a ");
+                AllowedItemsLore.add("§7State: " + stringAllowedState);
+                AllowedItemsLore.add("§e ");
+                if (Objects.equals(container.get(utils.hopperAllowedState, PersistentDataType.STRING), "§cDeaktiviert")) {
+                    AllowedItemsLore.add("§8Klicke um diese Filter Option zu aktivieren.");
                 }else {
-                    erlaubteItemsLore.add("§8Klicke um diese Filter Option zu deaktivieren.");
+                    AllowedItemsLore.add("§8Klicke um diese Filter Option zu deaktivieren.");
                 }
 
-                ItemStack erlaubteItemsItem;
-                if (Objects.equals(container.get(hopperErlaubtStatus, PersistentDataType.STRING), "§aAktiviert")) {
-                    erlaubteItemsItem = (new ItemBuilder(Material.CHEST_MINECART,
+                ItemStack AllowedItemsItem;
+                if (Objects.equals(container.get(utils.hopperAllowedState, PersistentDataType.STRING), "§aAktiviert")) {
+                    AllowedItemsItem = (new ItemBuilder(Material.CHEST_MINECART,
                             1,
-                            "§aErlaubte Items").glow().lore(erlaubteItemsLore).glow()).build();
+                            "§aErlaubte Items").glow().lore(AllowedItemsLore).glow()).build();
                 } else {
-                    erlaubteItemsItem = (new ItemBuilder(Material.CHEST_MINECART,
+                    AllowedItemsItem = (new ItemBuilder(Material.CHEST_MINECART,
                             1,
-                            "§aErlaubte Items").lore(erlaubteItemsLore)).build();
+                            "§aErlaubte Items").lore(AllowedItemsLore)).build();
                 }
 
                 ItemStack abschaltenItem = (new ItemBuilder(Material.BARRIER,
                         1,
                         "§cAbschalten")).build();
 
-                HopperInventory.setInventoryItems(10, verboteneItemsItem);
-                HopperInventory.setInventoryItems(12, erlaubteItemsItem);
-                HopperInventory.setInventoryItems(16, abschaltenItem);
+                inventoryManager.setItem("FilterInventory", 10, ForbiddenItemsItem);
+                inventoryManager.setItem("FilterInventory", 12, AllowedItemsItem);
+                inventoryManager.setItem("FilterInventory", 16, abschaltenItem);
 
-                HopperInventory.openInventory(player);
+                player.openInventory(inventoryManager.getCreatedInventory("FilterInventory"));
             }
         }
     }
@@ -192,6 +166,7 @@ public class HopperInteractEvent implements Listener {
     @EventHandler
     public void onHopperEvent(InventoryMoveItemEvent event) {
 
+        Utils utils = ItemFilter.getUtils();
         // Inventory sourceInventory = event.getSource();
         Inventory destinationInventory = event.getDestination();
 
@@ -205,34 +180,34 @@ public class HopperInteractEvent implements Listener {
             TileState state = (TileState) destinationInventory.getHolder();
             PersistentDataContainer container = state.getPersistentDataContainer();
 
-            String stringHopperErlaubtesItem1 = container.get(hopperErlaubtesItem1, PersistentDataType.STRING);
-            String stringHopperErlaubtesItem2 = container.get(hopperErlaubtesItem2, PersistentDataType.STRING);
-            String stringHopperErlaubtesItem3 = container.get(hopperErlaubtesItem3, PersistentDataType.STRING);
-            String stringHopperErlaubtesItem4 = container.get(hopperErlaubtesItem4, PersistentDataType.STRING);
-            String stringHopperErlaubtesItem5 = container.get(hopperErlaubtesItem5, PersistentDataType.STRING);
+            String hopperAllowedItem1 = container.get(utils.hopperAllowedItem1, PersistentDataType.STRING);
+            String hopperAllowedItem2 = container.get(utils.hopperAllowedItem2, PersistentDataType.STRING);
+            String hopperAllowedItem3 = container.get(utils.hopperAllowedItem3, PersistentDataType.STRING);
+            String hopperAllowedItem4 = container.get(utils.hopperAllowedItem4, PersistentDataType.STRING);
+            String hopperAllowedItem5 = container.get(utils.hopperAllowedItem5, PersistentDataType.STRING);
 
-            String stringHopperVerbotenesItem1 = container.get(hopperVerbotenesItem1, PersistentDataType.STRING);
-            String stringHopperVerbotenesItem2 = container.get(hopperVerbotenesItem2, PersistentDataType.STRING);
-            String stringHopperVerbotenesItem3 = container.get(hopperVerbotenesItem3, PersistentDataType.STRING);
-            String stringHopperVerbotenesItem4 = container.get(hopperVerbotenesItem4, PersistentDataType.STRING);
-            String stringHopperVerbotenesItem5 = container.get(hopperVerbotenesItem5, PersistentDataType.STRING);
+            String hopperForbiddenItem1 = container.get(utils.hopperForbiddenItem1, PersistentDataType.STRING);
+            String hopperForbiddenItem2 = container.get(utils.hopperForbiddenItem2, PersistentDataType.STRING);
+            String hopperForbiddenItem3 = container.get(utils.hopperForbiddenItem3, PersistentDataType.STRING);
+            String hopperForbiddenItem4 = container.get(utils.hopperForbiddenItem4, PersistentDataType.STRING);
+            String hopperForbiddenItem5 = container.get(utils.hopperForbiddenItem5, PersistentDataType.STRING);
 
-            if (Objects.equals(container.get(hopperErlaubtStatus, PersistentDataType.STRING), "§cDeaktiviert")
-                    && Objects.equals(container.get(hopperVerbotenStatus, PersistentDataType.STRING), "§aAktiviert")) {
-                if (Objects.equals(event.getItem().getType().toString(), stringHopperVerbotenesItem1) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperVerbotenesItem2) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperVerbotenesItem3) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperVerbotenesItem4) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperVerbotenesItem5)) {
+            if (Objects.equals(container.get(utils.hopperAllowedState, PersistentDataType.STRING), "§cDeaktiviert")
+                    && Objects.equals(container.get(utils.hopperForbiddenState, PersistentDataType.STRING), "§aAktiviert")) {
+                if (Objects.equals(event.getItem().getType().toString(), hopperForbiddenItem1) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperForbiddenItem2) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperForbiddenItem3) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperForbiddenItem4) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperForbiddenItem5)) {
                     event.setCancelled(true);
                 }
-            } else if (Objects.equals(container.get(hopperErlaubtStatus, PersistentDataType.STRING), "§aAktiviert")
-                    && Objects.equals(container.get(hopperVerbotenStatus, PersistentDataType.STRING), "§cDeaktiviert")) {
-                if (!(Objects.equals(event.getItem().getType().toString(), stringHopperErlaubtesItem1) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperErlaubtesItem2) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperErlaubtesItem3) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperErlaubtesItem4) ||
-                        Objects.equals(event.getItem().getType().toString(), stringHopperErlaubtesItem5))) {
+            } else if (Objects.equals(container.get(utils.hopperAllowedState, PersistentDataType.STRING), "§aAktiviert")
+                    && Objects.equals(container.get(utils.hopperForbiddenState, PersistentDataType.STRING), "§cDeaktiviert")) {
+                if (!(Objects.equals(event.getItem().getType().toString(), hopperAllowedItem1) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperAllowedItem2) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperAllowedItem3) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperAllowedItem4) ||
+                        Objects.equals(event.getItem().getType().toString(), hopperAllowedItem5))) {
                     event.setCancelled(true);
                 }
             }
@@ -241,14 +216,15 @@ public class HopperInteractEvent implements Listener {
 
     @EventHandler
     public void onInventoryCloseEvent(InventoryCloseEvent event) {
-        if (inventoryClosedAfterClick) {
-            HopperInteractEvent.inventoryClosedAfterClick = false;
+        Utils utils = ItemFilter.getUtils();
+        if (utils.isInventoryClosedAfterClick()) {
+            utils.setInventoryClosedAfterClick(false);
         } else {
             long current = System.currentTimeMillis();
             HumanEntity player = event.getPlayer();
-            ClickEvent click = lastClickedBlock.get(player.getUniqueId().toString());
+            Utils.ClickEvent click = utils.lastClickedBlock.get(player.getUniqueId().toString());
             if (click != null && current - click.time >= 25L)
-                lastClickedBlock.remove(player.getUniqueId().toString());
+                utils.lastClickedBlock.remove(player.getUniqueId().toString());
         }
     }
 }
